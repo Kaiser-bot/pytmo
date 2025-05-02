@@ -1,7 +1,0 @@
-version: '3'
-services:
-  pytmo-api:
-    image: ghcr.io/kaiser-bot/pytmo:latest
-    ports:
-      - "8000:8000"
-    restart: always
