@@ -14,8 +14,8 @@ Este proyecto proporciona una API REST para obtener información de mangas desde
 
 1. Clonar el repositorio:
    ```bash
-   git clone https://github.com/Kaiser-bot/pyzonatmo.git
-   cd manga-api
+   git clone https://github.com/Kaiser-bot/pytmo.git
+   cd pytmo
    ```
 
 2. Instalar dependencias:
