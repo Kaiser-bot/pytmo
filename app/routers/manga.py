@@ -99,3 +99,22 @@ async def get_manga_details(mangaUrl: str):
         return ApiResponse(statusCode=200, data=manga_info)
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+@router.get("/manga/{manga_url:path}/grupos")
+async def get_manga_grupos(manga_url: str):
+    """
+    Obtiene los grupos que han trabajado en un manga específico
+    """
+    try:
+        # Asegurarse de que manga_url es una URL completa
+        if not manga_url.startswith("http"):
+            manga_url = f"{scraper.base_url}/{manga_url}"
+
+        grupos = scraper.get_manga_grupos(manga_url)
+        return {
+            "status": "success",
+            "total": len(grupos),
+            "grupos": grupos
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error al obtener los grupos: {str(e)}")

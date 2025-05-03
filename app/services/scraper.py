@@ -193,91 +193,51 @@ class MangaScraper:
 
         return mangas
 
-    def get_manga_info(self, manga_url):
-        """Obtiene información detallada de un manga específico"""
+    def get_manga_grupos(self, manga_url):
+        """Obtiene los grupos que han trabajado en un manga específico"""
         response = requests.get(manga_url, headers=self.headers)
         soup = BeautifulSoup(response.text, "html.parser")
 
-        # Extracción de datos básicos
-        title_element = soup.select_one("h1.element-title")
-        title = title_element.text.strip() if title_element else ""
+        # Diccionario para almacenar información de grupos
+        grupos = {}
 
-        subtitle_element = soup.select_one("h2.element-subtitle")
-        subtitle = subtitle_element.text.strip() if subtitle_element else ""
+        # Buscar todos los capítulos
+        chapter_headers = soup.select("li.list-group-item.p-0.bg-light")
 
-        # Obtener la imagen
-        image_element = soup.select_one(".element-image img.book-thumbnail")
-        image = image_element["src"] if image_element and image_element.has_attr("src") else ""
+        for chapter_header in chapter_headers:
+            # Buscar grupos dentro de cada capítulo
+            upload_items = chapter_header.select("ul.chapter-list li.list-group-item")
 
-        # Tipo de libro (MANGA, MANHWA, etc.)
-        tipo_element = soup.select_one(".book-type")
-        tipo = tipo_element.text.strip() if tipo_element else "MANGA"
+            for upload_item in upload_items:
+                # Extraer información del grupo
+                group_element = upload_item.select_one("div.col-4.col-md-6 a")
+                if not group_element:
+                    continue
 
-        # Extracción de puntuación
-        score_element = soup.select_one(".score span")
-        score = score_element.text.strip() if score_element else "0.00"
+                grupo_nombre = group_element.text.strip()
+                grupo_url = group_element.get("href", "")
 
-        # Extracción de demografía
-        demografia_element = soup.select_one(".demography")
-        demografia = demografia_element.text.strip() if demografia_element else ""
+                # Extraer fecha si está disponible
+                date_element = upload_item.select_one("span.badge.badge-primary")
+                fecha = date_element.text.replace("2025-", "").strip() if date_element else ""
 
-        # Descripción del manga
-        descripcion_element = soup.select_one(".element-description")
-        descripcion = descripcion_element.text.strip() if descripcion_element else ""
+                # Actualizar información del grupo
+                if grupo_nombre not in grupos:
+                    grupos[grupo_nombre] = {
+                        "nombre": grupo_nombre,
+                        "url": grupo_url,
+                        "capitulos": 1,
+                        "ultima_actividad": fecha
+                    }
+                else:
+                    grupos[grupo_nombre]["capitulos"] += 1
+                    # Actualizar última actividad si la nueva fecha es más reciente
+                    if fecha and (not grupos[grupo_nombre]["ultima_actividad"] or
+                                  fecha > grupos[grupo_nombre]["ultima_actividad"]):
+                        grupos[grupo_nombre]["ultima_actividad"] = fecha
 
-        # Estado de publicación
-        estado_element = soup.select_one(".book-status")
-        estado = estado_element.text.strip() if estado_element else ""
-
-        # Géneros
-        generos = []
-        generos_elements = soup.select("h5.element-subtitle:contains('Géneros') + h6 a.badge")
-        if not generos_elements:
-            generos_elements = soup.select("a.badge-primary")
-
-        for genre in generos_elements:
-            generos.append(genre.text.strip())
-
-        # Títulos alternativos
-        titulos_alt = []
-        alt_titles_section = soup.find("h5", string="Títulos alternativos")
-        if alt_titles_section:
-            alt_titles = alt_titles_section.find_next_siblings("span")
-            for alt in alt_titles:
-                titulos_alt.append(alt.text.strip())
-
-        # Capítulos
-        capitulos = []
-        capitulos_items = soup.select(".list-group-item")
-        for item in capitulos_items:
-            # Obtener título del capítulo
-            title_element = item.select_one("h4 a.btn-collapse")
-            if title_element:
-                cap_title = title_element.text.strip()
-
-                # Obtener el enlace de lectura directo
-                link_element = item.select_one("a.btn-default")
-                if link_element and link_element.has_attr("href"):
-                    cap_url = link_element["href"]
-                    capitulo = Chapter(
-                        Title=cap_title,
-                        UrlLeer=cap_url
-                    )
-                    capitulos.append(capitulo)
-
-        return MangaInfo(
-            title=title,
-            image=image,
-            tipo=tipo,
-            score=score,
-            demografia=demografia,
-            descripcion=descripcion,
-            estado=estado,
-            generos=generos,
-            capitulo=capitulos,
-            subtitle=subtitle,
-            titulos_alt=titulos_alt
-        )
+        # Convertir diccionario a lista
+        return list(grupos.values())
 
     def get_manga_info(self, manga_url):
         """Obtiene información detallada de un manga específico"""
