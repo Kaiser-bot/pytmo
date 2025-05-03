@@ -16,6 +16,9 @@ jobs:
     steps:
     - name: Checkout del código
       uses: actions/checkout@v4
+      
+    - name: Configurar QEMU
+      uses: docker/setup-qemu-action@v3
 
     - name: Configurar Docker Buildx
       uses: docker/setup-buildx-action@v3
@@ -26,14 +29,19 @@ jobs:
         registry: ghcr.io
         username: ${{ github.actor }}
         password: ${{ secrets.GITHUB_TOKEN }}
+        
+    - name: Convertir nombre de repositorio a minúsculas
+      id: repo_name
+      run: echo "REPO_LC=${GITHUB_REPOSITORY,,}" >> $GITHUB_ENV
 
-    - name: Construir y publicar imagen
+    - name: Construir y publicar imagen multi-arquitectura
       uses: docker/build-push-action@v5
       with:
         context: .
+        platforms: linux/amd64,linux/arm64,linux/arm/v7
         push: true
         tags: |
-          ghcr.io/${{ github.repository }}:latest
-          ghcr.io/${{ github.repository }}:${{ github.sha }}
+          ghcr.io/${{ env.REPO_LC }}:latest
+          ghcr.io/${{ env.REPO_LC }}:${{ github.sha }}
         cache-from: type=gha
         cache-to: type=gha,mode=max
