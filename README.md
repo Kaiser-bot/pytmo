@@ -144,6 +144,30 @@ uvicorn main:app --reload --host 0.0.0.0 --port 8000
 }
 ```
 
+### 7. Obtener Imágenes de Capítulos (Modos de Visualización)
+
+**Endpoint**: `/api/v1/get-manga`
+**Método**: GET
+**Parámetros**:
+- `urlPage` (string, requerido): URL del capítulo en formato paginated o cascade
+
+La API soporta dos formatos de visualización para la misma URL:
+- **Formato cascade**: `/viewer/{id}/cascade` - Devuelve todas las imágenes del capítulo de una vez
+- **Formato paginated**: `/viewer/{id}/paginated` - También devuelve todas las imágenes optimizando la carga
+
+**Ejemplo de respuesta**:
+```json
+{
+  "statusCode": 200,
+  "data": [
+    "https://imgtmo.com/uploads/20250507/112fc5256da47b38d7f7704ceb315590/d800f1f3.webp",
+    "https://imgtmo.com/uploads/20250507/112fc5256da47b38d7f7704ceb315590/19a5f30d.webp",
+    "https://imgtmo.com/uploads/20250507/112fc5256da47b38d7f7704ceb315590/3573287f.webp",
+    "..."
+  ]
+}
+```
+
 ## Notas Adicionales
 
 - Todos los endpoints usan el prefijo configurado en `API_PREFIX` ("/api/v1" por defecto)

@@ -1,6 +1,8 @@
 # Código completo de app/services/scraper.py con los cambios aplicados:
 
 import re
+from urllib.parse import urljoin
+
 import requests
 from bs4 import BeautifulSoup
 from typing import List, Dict, Any, Optional
@@ -74,6 +76,97 @@ class MangaScraper:
                 print(f"Error extrayendo manga: {e}")
 
         return mangas
+
+    def get_chapter_images(self, chapter_url, referer_url=None):
+        """
+        Obtiene las imágenes de un capítulo específico
+        """
+        headers = self.headers.copy()
+        if referer_url:
+            headers['Referer'] = referer_url
+
+        # Primero, siempre intentamos con formato cascade para obtener todas las imágenes
+        if "/paginated" in chapter_url:
+            # Adapta para manejar tanto /paginated como /paginated/número
+            cascade_url = re.sub(r'/paginated(/\d+)?', '/cascade', chapter_url)
+            print(f"Convirtiendo URL de paginated a cascade: {cascade_url}")
+            images = self._extract_images(cascade_url, headers)
+            if images:
+                return images
+
+        # Si la conversión falló o no era necesaria, intentamos con la URL original
+        return self._extract_images(chapter_url, headers)
+
+    def _extract_images(self, url, headers):
+        """Método auxiliar para extraer imágenes de una página"""
+        print(f"Extrayendo imágenes de: {url}")
+        response = requests.get(url, headers=headers)
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        images = []
+
+        # Método 1: Buscar imágenes en varios contenedores comunes
+        selectors = ["#viewer-container img", ".viewer-container img", ".chapter-content img",
+                     "#chapter-reader img", "#chapter-container img"]
+
+        for selector in selectors:
+            img_elements = soup.select(selector)
+            for img in img_elements:
+                for attr in ["src", "data-src", "data-original", "data-lazy"]:
+                    img_url = img.get(attr)
+                    if img_url and not img_url.endswith('loading.gif'):
+                        if not img_url.startswith(('http://', 'https://')):
+                            img_url = urljoin(url, img_url)
+                        images.append(img_url)
+                        break
+
+        # Método 2: Extracción de JavaScript
+        if not images:
+            scripts = soup.select("script")
+            for script in scripts:
+                if not script.string:
+                    continue
+
+                script_text = script.string
+
+                # Patrones para encontrar arrays de imágenes
+                patterns = [
+                    r'var\s+imglist\s*=\s*(\[.*?\]);',
+                    r'var\s+pages\s*=\s*(\[.*?\]);',
+                    r'var\s+images\s*=\s*(\[.*?\]);',
+                    r'var\s+chapter_images\s*=\s*(\[.*?\]);'
+                ]
+
+                for pattern in patterns:
+                    matches = re.search(pattern, script_text, re.DOTALL)
+                    if matches:
+                        try:
+                            # Convertir string JSON a lista de Python
+                            import json
+                            img_array_str = matches.group(1)
+                            img_urls = json.loads(img_array_str.replace("'", '"'))
+
+                            for img_url in img_urls:
+                                if isinstance(img_url, str) and not img_url.endswith('loading.gif'):
+                                    if not img_url.startswith(('http://', 'https://')):
+                                        img_url = urljoin(url, img_url)
+                                    images.append(img_url)
+                        except json.JSONDecodeError:
+                            # Si falla JSON, intentamos con regex
+                            img_urls = re.findall(r'"([^"]+\.(jpg|jpeg|png|webp))"', matches.group(1))
+                            for img_url, _ in img_urls:
+                                if not img_url.startswith(('http://', 'https://')):
+                                    img_url = urljoin(url, img_url)
+                                images.append(img_url)
+
+        # Eliminar duplicados manteniendo el orden
+        unique_images = []
+        for img in images:
+            if img not in unique_images:
+                unique_images.append(img)
+
+        print(f"Encontradas {len(unique_images)} imágenes únicas")
+        return unique_images
 
     def get_populares_seinen(self, page_number: int = 1) -> list:
         url = f"{settings.MANGA_BASE_URL}populars-boys"
